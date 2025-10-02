@@ -1,6 +1,7 @@
 # Coding Test 2025
 
-- Fork して小さなコミットで開発し、PR を作成してください。
+- このリポジトリをFork して小さなコミットで開発し、q1,q2が完了したら PR を作成してください。
+  - eg. `<YourGithubAccount>/recruit-coding-test-2025`
 - Node 20 / pnpm 推奨
 - `.devcontainer`フォルダがありますが、DevContainerを使わなくてもコーディングは可能です
   - DevContainerの情報については[ドキュメント](https://containers.dev/)を参照してください
