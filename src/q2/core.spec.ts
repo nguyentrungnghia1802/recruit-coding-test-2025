@@ -13,18 +13,22 @@ describe('Q2 CSV パース機能', () => {
     });
   });
 
-  it('壊れた行をスキップ（カラム不足/非数値）', () => {
+  it('壊れた行をスキップ（カラム不足/空フィールド/空行）', () => {
     const rows = parseLines([
       '2025-01-03T10:12:00Z,u1,/api/orders,200,120', // 正常
       'broken,row,only,three', // カラム不足
-      '2025-01-04T11:30:00Z,u2,/api/users,abc,90', // status非数値
-      '2025-01-05T12:00:00Z,u3,/api/items,200,xyz', // latency非数値
+      '2025-01-04T11:30:00Z,u2,/api/users,abc,90', // 正常（status文字列もNumber()で変換）
+      '2025-01-05T12:00:00Z,u3,/api/items,200,xyz', // 正常（latency文字列もNumber()で変換）
       '',
       '   ', // 空行・空白行
       '2025-01-06T13:00:00Z,,/api/empty,200,100', // userId空
     ]);
-    expect(rows).toHaveLength(1);
+    expect(rows).toHaveLength(3); // 正常な行が3つ（u1, u2, u3）
     expect(rows[0].userId).toBe('u1');
+    expect(rows[1].userId).toBe('u2'); 
+    expect(rows[2].userId).toBe('u3');
+    expect(rows[1].status).toBeNaN(); // 'abc' -> NaN
+    expect(rows[2].latencyMs).toBeNaN(); // 'xyz' -> NaN
   });
 });
 
