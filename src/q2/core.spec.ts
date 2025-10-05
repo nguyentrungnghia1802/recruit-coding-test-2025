@@ -151,3 +151,56 @@ describe('Q2 統合テスト', () => {
     ]);
   });
 });
+
+describe('Q2 エッジケース', () => {
+  it('特殊文字・Unicode・丸め計算精度', () => {
+    const lines = [
+      '2025-01-01T10:00:00Z,user123,/api/測試,200,101', // Unicode文字
+      '2025-01-01T11:00:00Z,user456,/api/測試,200,102', // 同path
+      '2025-01-01T12:00:00Z,あいう,/api/special-@#$,404,300', // 特殊文字
+    ];
+    const result = aggregate(lines, { from: '2025-01-01', to: '2025-01-01', tz: 'jst', top: 5 });
+    const unicode = result.find(r => r.path === '/api/測試')!;
+    const special = result.find(r => r.path === '/api/special-@#$')!;
+    expect(unicode.count).toBe(2);
+    expect(unicode.avgLatency).toBe(102); // Math.round((101+102)/2) = 102
+    expect(special.count).toBe(1);
+    expect(special.avgLatency).toBe(300);
+  });
+
+  it('top=0とtop=1の境界値', () => {
+    const lines = [
+      '2025-01-01T10:00:00Z,u1,/api/a,200,100',
+      '2025-01-01T11:00:00Z,u2,/api/b,200,200',
+      '2025-01-01T12:00:00Z,u3,/api/c,200,300',
+    ];
+    const zeroResult = aggregate(lines, { from: '2025-01-01', to: '2025-01-01', tz: 'jst', top: 0 });
+    const oneResult = aggregate(lines, { from: '2025-01-01', to: '2025-01-01', tz: 'jst', top: 1 });
+    expect(zeroResult).toHaveLength(0); // top=0なら空配列
+    expect(oneResult).toHaveLength(1); // top=1なら1件のみ
+    expect(oneResult[0].path).toBe('/api/a'); // 最初の1件（count同数時path昇順）
+  });
+});
+
+describe('Q2 エラーハンドリング', () => {
+  it('空配列・データなしケース', () => {
+    const emptyResult = aggregate([], { from: '2025-01-01', to: '2025-01-01', tz: 'jst', top: 5 });
+    expect(emptyResult).toHaveLength(0);
+    
+    const noMatchResult = aggregate(['2025-01-01T10:00:00Z,u1,/api/test,200,100'], {
+      from: '2025-12-01', to: '2025-12-31', tz: 'jst', top: 5
+    });
+    expect(noMatchResult).toHaveLength(0); // 期間外データのみ
+  });
+
+  it('同一秒の複数リクエスト・ソート安定性', () => {
+    const lines = [
+      '2025-01-01T10:00:00Z,u1,/api/z,200,100', // 同時刻
+      '2025-01-01T10:00:00Z,u2,/api/a,200,100', // 同時刻  
+      '2025-01-01T10:00:00Z,u3,/api/m,200,100', // 同時刻
+    ];
+    const result = aggregate(lines, { from: '2025-01-01', to: '2025-01-01', tz: 'jst', top: 10 });
+    expect(result.map(r => r.path)).toEqual(['/api/a', '/api/m', '/api/z']); // path昇順安定
+    expect(result.every(r => r.count === 1 && r.avgLatency === 100)).toBe(true);
+  });
+});
