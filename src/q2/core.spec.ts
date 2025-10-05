@@ -159,9 +159,14 @@ describe('Q2 エッジケース', () => {
       '2025-01-01T11:00:00Z,user456,/api/測試,200,102', // 同path
       '2025-01-01T12:00:00Z,あいう,/api/special-@#$,404,300', // 特殊文字
     ];
-    const result = aggregate(lines, { from: '2025-01-01', to: '2025-01-01', tz: 'jst', top: 5 });
-    const unicode = result.find(r => r.path === '/api/測試')!;
-    const special = result.find(r => r.path === '/api/special-@#$')!;
+    const result = aggregate(lines, {
+      from: '2025-01-01',
+      to: '2025-01-01',
+      tz: 'jst',
+      top: 5,
+    });
+    const unicode = result.find((r) => r.path === '/api/測試')!;
+    const special = result.find((r) => r.path === '/api/special-@#$')!;
     expect(unicode.count).toBe(2);
     expect(unicode.avgLatency).toBe(102); // Math.round((101+102)/2) = 102
     expect(special.count).toBe(1);
@@ -174,8 +179,18 @@ describe('Q2 エッジケース', () => {
       '2025-01-01T11:00:00Z,u2,/api/b,200,200',
       '2025-01-01T12:00:00Z,u3,/api/c,200,300',
     ];
-    const zeroResult = aggregate(lines, { from: '2025-01-01', to: '2025-01-01', tz: 'jst', top: 0 });
-    const oneResult = aggregate(lines, { from: '2025-01-01', to: '2025-01-01', tz: 'jst', top: 1 });
+    const zeroResult = aggregate(lines, {
+      from: '2025-01-01',
+      to: '2025-01-01',
+      tz: 'jst',
+      top: 0,
+    });
+    const oneResult = aggregate(lines, {
+      from: '2025-01-01',
+      to: '2025-01-01',
+      tz: 'jst',
+      top: 1,
+    });
     expect(zeroResult).toHaveLength(0); // top=0なら空配列
     expect(oneResult).toHaveLength(1); // top=1なら1件のみ
     expect(oneResult[0].path).toBe('/api/a'); // 最初の1件（count同数時path昇順）
@@ -184,24 +199,42 @@ describe('Q2 エッジケース', () => {
 
 describe('Q2 エラーハンドリング', () => {
   it('空配列・データなしケース', () => {
-    const emptyResult = aggregate([], { from: '2025-01-01', to: '2025-01-01', tz: 'jst', top: 5 });
-    expect(emptyResult).toHaveLength(0);
-    
-    const noMatchResult = aggregate(['2025-01-01T10:00:00Z,u1,/api/test,200,100'], {
-      from: '2025-12-01', to: '2025-12-31', tz: 'jst', top: 5
+    const emptyResult = aggregate([], {
+      from: '2025-01-01',
+      to: '2025-01-01',
+      tz: 'jst',
+      top: 5,
     });
+    expect(emptyResult).toHaveLength(0);
+
+    const noMatchResult = aggregate(
+      ['2025-01-01T10:00:00Z,u1,/api/test,200,100'],
+      {
+        from: '2025-12-01',
+        to: '2025-12-31',
+        tz: 'jst',
+        top: 5,
+      }
+    );
     expect(noMatchResult).toHaveLength(0); // 期間外データのみ
   });
 
   it('同一秒の複数リクエスト・ソート安定性', () => {
     const lines = [
       '2025-01-01T10:00:00Z,u1,/api/z,200,100', // 同時刻
-      '2025-01-01T10:00:00Z,u2,/api/a,200,100', // 同時刻  
+      '2025-01-01T10:00:00Z,u2,/api/a,200,100', // 同時刻
       '2025-01-01T10:00:00Z,u3,/api/m,200,100', // 同時刻
     ];
-    const result = aggregate(lines, { from: '2025-01-01', to: '2025-01-01', tz: 'jst', top: 10 });
-    expect(result.map(r => r.path)).toEqual(['/api/a', '/api/m', '/api/z']); // path昇順安定
-    expect(result.every(r => r.count === 1 && r.avgLatency === 100)).toBe(true);
+    const result = aggregate(lines, {
+      from: '2025-01-01',
+      to: '2025-01-01',
+      tz: 'jst',
+      top: 10,
+    });
+    expect(result.map((r) => r.path)).toEqual(['/api/a', '/api/m', '/api/z']); // path昇順安定
+    expect(result.every((r) => r.count === 1 && r.avgLatency === 100)).toBe(
+      true
+    );
   });
 });
 
@@ -209,12 +242,17 @@ describe('Q2 特殊ケース第2弾', () => {
   it('極端な数値・負数・非常に大きなlatency', () => {
     const lines = [
       '2025-01-01T10:00:00Z,u1,/api/test,200,0', // latency=0
-      '2025-01-01T11:00:00Z,u2,/api/test,200,999999', // 非常に大きなlatency  
+      '2025-01-01T11:00:00Z,u2,/api/test,200,999999', // 非常に大きなlatency
       '2025-01-01T12:00:00Z,u3,/api/error,-404,150', // 負のstatus
     ];
-    const result = aggregate(lines, { from: '2025-01-01', to: '2025-01-01', tz: 'jst', top: 5 });
-    const testApi = result.find(r => r.path === '/api/test')!;
-    const errorApi = result.find(r => r.path === '/api/error')!;
+    const result = aggregate(lines, {
+      from: '2025-01-01',
+      to: '2025-01-01',
+      tz: 'jst',
+      top: 5,
+    });
+    const testApi = result.find((r) => r.path === '/api/test')!;
+    const errorApi = result.find((r) => r.path === '/api/error')!;
     expect(testApi.count).toBe(2);
     expect(testApi.avgLatency).toBe(500000); // Math.round((0+999999)/2)
     expect(errorApi.count).toBe(1);
@@ -224,20 +262,32 @@ describe('Q2 特殊ケース第2弾', () => {
   it('midnight境界・タイムゾーン跨ぎ詳細', () => {
     const lines = [
       '2025-01-01T14:59:59Z,u1,/api/before,200,100', // JST 23:59:59 (2025-01-01)
-      '2025-01-01T15:00:00Z,u2,/api/exactly,200,200', // JST 00:00:00 (2025-01-02)  
+      '2025-01-01T15:00:00Z,u2,/api/exactly,200,200', // JST 00:00:00 (2025-01-02)
       '2025-01-01T15:00:01Z,u3,/api/after,200,300', // JST 00:00:01 (2025-01-02)
     ];
-    const result = aggregate(lines, { from: '2025-01-01', to: '2025-01-02', tz: 'jst', top: 5 });
+    const result = aggregate(lines, {
+      from: '2025-01-01',
+      to: '2025-01-02',
+      tz: 'jst',
+      top: 5,
+    });
     expect(result).toHaveLength(3);
-    expect(result.filter(r => r.date === '2025-01-01')).toHaveLength(1); // before
-    expect(result.filter(r => r.date === '2025-01-02')).toHaveLength(2); // exactly, after
+    expect(result.filter((r) => r.date === '2025-01-01')).toHaveLength(1); // before
+    expect(result.filter((r) => r.date === '2025-01-02')).toHaveLength(2); // exactly, after
   });
 
   it('大量同一pathランキング・安定ソート', () => {
-    const lines = Array.from({ length: 50 }, (_, i) => 
-      `2025-01-01T${String(10 + Math.floor(i/10)).padStart(2,'0')}:${String((i%10)*6).padStart(2,'0')}:00Z,u${i},/api/bulk,200,${100+i}`
+    const lines = Array.from(
+      { length: 50 },
+      (_, i) =>
+        `2025-01-01T${String(10 + Math.floor(i / 10)).padStart(2, '0')}:${String((i % 10) * 6).padStart(2, '0')}:00Z,u${i},/api/bulk,200,${100 + i}`
     );
-    const result = aggregate(lines, { from: '2025-01-01', to: '2025-01-01', tz: 'jst', top: 10 });
+    const result = aggregate(lines, {
+      from: '2025-01-01',
+      to: '2025-01-01',
+      tz: 'jst',
+      top: 10,
+    });
     expect(result).toHaveLength(1); // 1つのpathのみ
     expect(result[0].path).toBe('/api/bulk');
     expect(result[0].count).toBe(50);
