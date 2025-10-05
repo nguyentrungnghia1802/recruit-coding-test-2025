@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseLines } from './core.js';
+import { parseLines, aggregate } from './core.js';
 
 describe('Q2 core', () => {
   describe('parseLines', () => {
