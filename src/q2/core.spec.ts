@@ -204,3 +204,43 @@ describe('Q2 エラーハンドリング', () => {
     expect(result.every(r => r.count === 1 && r.avgLatency === 100)).toBe(true);
   });
 });
+
+describe('Q2 特殊ケース第2弾', () => {
+  it('極端な数値・負数・非常に大きなlatency', () => {
+    const lines = [
+      '2025-01-01T10:00:00Z,u1,/api/test,200,0', // latency=0
+      '2025-01-01T11:00:00Z,u2,/api/test,200,999999', // 非常に大きなlatency  
+      '2025-01-01T12:00:00Z,u3,/api/error,-404,150', // 負のstatus
+    ];
+    const result = aggregate(lines, { from: '2025-01-01', to: '2025-01-01', tz: 'jst', top: 5 });
+    const testApi = result.find(r => r.path === '/api/test')!;
+    const errorApi = result.find(r => r.path === '/api/error')!;
+    expect(testApi.count).toBe(2);
+    expect(testApi.avgLatency).toBe(500000); // Math.round((0+999999)/2)
+    expect(errorApi.count).toBe(1);
+    expect(errorApi.avgLatency).toBe(150);
+  });
+
+  it('midnight境界・タイムゾーン跨ぎ詳細', () => {
+    const lines = [
+      '2025-01-01T14:59:59Z,u1,/api/before,200,100', // JST 23:59:59 (2025-01-01)
+      '2025-01-01T15:00:00Z,u2,/api/exactly,200,200', // JST 00:00:00 (2025-01-02)  
+      '2025-01-01T15:00:01Z,u3,/api/after,200,300', // JST 00:00:01 (2025-01-02)
+    ];
+    const result = aggregate(lines, { from: '2025-01-01', to: '2025-01-02', tz: 'jst', top: 5 });
+    expect(result).toHaveLength(3);
+    expect(result.filter(r => r.date === '2025-01-01')).toHaveLength(1); // before
+    expect(result.filter(r => r.date === '2025-01-02')).toHaveLength(2); // exactly, after
+  });
+
+  it('大量同一pathランキング・安定ソート', () => {
+    const lines = Array.from({ length: 50 }, (_, i) => 
+      `2025-01-01T${String(10 + Math.floor(i/10)).padStart(2,'0')}:${String((i%10)*6).padStart(2,'0')}:00Z,u${i},/api/bulk,200,${100+i}`
+    );
+    const result = aggregate(lines, { from: '2025-01-01', to: '2025-01-01', tz: 'jst', top: 10 });
+    expect(result).toHaveLength(1); // 1つのpathのみ
+    expect(result[0].path).toBe('/api/bulk');
+    expect(result[0].count).toBe(50);
+    expect(result[0].avgLatency).toBe(125); // Math.round((100+149)/2) = Math.round(124.5) = 125
+  });
+});
