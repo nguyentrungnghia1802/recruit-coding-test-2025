@@ -1,13 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { aggregate } from './core.js';
 
-describe('期間フィルタテスト', () => {
+describe('期間フィルタ機能', () => {
   it('from/to境界含む判定が正しい', () => {
     const lines = [
-      '2025-01-01T00:00:00Z,u1,/api/orders,200,100', // UTC→JST: 2025-01-01 09:00
-      '2025-01-01T14:59:59Z,u2,/api/users,200,110',  // UTC→JST: 2025-01-01 23:59
-      '2025-01-02T12:00:00Z,u3,/api/items,200,120',  // UTC→JST: 2025-01-02 21:00
-      '2025-01-03T14:59:59Z,u4,/api/orders,200,130', // UTC→JST: 2025-01-03 23:59
+      '2025-01-01T00:00:00Z,u1,/api/orders,200,100', // from境界（含む）
+      '2025-01-01T14:59:59Z,u2,/api/users,200,110',  // from境界内
+      '2025-01-02T12:00:00Z,u3,/api/items,200,120',  // 範囲内
+      '2025-01-03T14:59:59Z,u4,/api/orders,200,130', // to境界内（含む）
     ];
     
     const result = aggregate(lines, {
@@ -27,7 +27,6 @@ describe('期間フィルタテスト', () => {
       expect(['2025-01-01', '2025-01-02', '2025-01-03']).toContain(r.date);
     });
     
-    // 期間内のデータのみが含まれることを確認
     expect(result).toHaveLength(4); // 4つのエントリ（date×path別）
   });
 
@@ -47,9 +46,10 @@ describe('期間フィルタテスト', () => {
     
     expect(result).toHaveLength(1);
     expect(result[0].path).toBe('/api/orders');
+    expect(result[0].date).toBe('2025-01-01');
   });
 
-  it('境界値の精密テスト', () => {
+  it('境界値の精密テスト（1秒単位）', () => {
     const lines = [
       '2024-12-31T23:59:59Z,u1,/api/before,200,100', // 1秒前（除外）
       '2025-01-01T00:00:00Z,u2,/api/start,200,110',  // 開始時刻（含む）
