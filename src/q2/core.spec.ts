@@ -25,7 +25,7 @@ describe('Q2 CSV パース機能', () => {
     ]);
     expect(rows).toHaveLength(3); // 正常な行が3つ（u1, u2, u3）
     expect(rows[0].userId).toBe('u1');
-    expect(rows[1].userId).toBe('u2'); 
+    expect(rows[1].userId).toBe('u2');
     expect(rows[2].userId).toBe('u3');
     expect(rows[1].status).toBeNaN(); // 'abc' -> NaN
     expect(rows[2].latencyMs).toBeNaN(); // 'xyz' -> NaN
